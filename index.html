@@ -79,6 +79,11 @@
     .hero-title em { font-style: normal; color: var(--paper); }
     .hero-bottom { position: relative; z-index: 2; display: flex; align-items: end; justify-content: space-between; gap: 30px; margin-top: 30px; }
     .hero-note { max-width: 260px; color: var(--mist); font-size: 12px; line-height: 1.7; }
+    .viewer-stats { display: flex; align-items: center; gap: 22px; margin-top: 28px; color: var(--steel); font: 9px var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+    .viewer-stats span { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+    .viewer-stats b { color: var(--paper); font: 500 11px var(--mono); }
+    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 4px rgba(255,90,49,.12); animation: live-pulse 1.8s ease-in-out infinite; }
+    @keyframes live-pulse { 0%,100% { opacity: .55; transform: scale(.8); } 50% { opacity: 1; transform: scale(1); } }
     .hero-meta { display: flex; gap: clamp(20px, 4vw, 70px); }
     .meta-block { display: grid; gap: 7px; }
     .meta-label, .meta-value { font: 10px var(--mono); letter-spacing: .16em; text-transform: uppercase; }
@@ -254,6 +259,7 @@
       .hero-title span { padding-left: 12vw; }
       .hero-bottom { display: block; }
       .hero-note { max-width: 220px; margin-bottom: 30px; font-size: 11px; }
+      .viewer-stats { margin: -6px 0 30px; gap: 16px; }
       .hero-meta { gap: 18px; flex-wrap: wrap; }
       .scroll-cue { bottom: 20px; }
       .section { padding: 90px 20px; }
@@ -346,7 +352,10 @@
         <div class="eyebrow hero-kicker">RIDER / INDIA</div>
         <h1 class="hero-title display"><em>FLYBY</em><span>ETHICAL</span></h1>
         <div class="hero-bottom">
-          <p class="hero-note">A moving archive of two wheels, quiet roads and the frames that stay after the engine cools.</p>
+          <div>
+            <p class="hero-note">A moving archive of two wheels, quiet roads and the frames that stay after the engine cools.</p>
+            <div class="viewer-stats" aria-live="polite"><span><i class="live-dot"></i><b id="live-count">--</b> live now</span><span><b id="total-count">--</b> total views</span></div>
+          </div>
           <div class="hero-meta">
             <div class="meta-block"><span class="meta-label">Machine</span><span class="meta-value">Husqvarna</span></div>
             <div class="meta-block"><span class="meta-label">Model</span><span class="meta-value">Vitpilen 250</span></div>
@@ -585,6 +594,32 @@
       const machineProgress = $('#machine-progress');
       const sceneLabel = $('#scene-label');
       const sceneIndex = $('#scene-index');
+      const totalCount = $('#total-count');
+      const liveCount = $('#live-count');
+      const counterBase = 'https://countapi.mileshilliard.com/api/v1';
+      const totalCounter = `${counterBase}/hit/flyby-ethical-total`;
+      const liveUpCounter = `${counterBase}/hit/flyby-ethical-live`;
+      const liveDownCounter = `${counterBase}/down/flyby-ethical-live`;
+      let liveActive = false;
+      const formatCount = value => Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-IN') : '--';
+      async function markLive() {
+        if (liveActive) return;
+        try {
+          const response = await fetch(liveUpCounter, { mode: 'cors', cache: 'no-store' });
+          const data = await response.json();
+          liveCount.textContent = formatCount(data.value);
+          liveActive = true;
+        } catch (_) { liveCount.textContent = '--'; }
+      }
+      async function unmarkLive() {
+        if (!liveActive) return;
+        liveActive = false;
+        try { await fetch(liveDownCounter, { mode: 'cors', cache: 'no-store', keepalive: true }); } catch (_) {}
+      }
+      fetch(totalCounter, { mode: 'cors', cache: 'no-store' }).then(response => response.json()).then(data => { totalCount.textContent = formatCount(data.value); }).catch(() => { totalCount.textContent = '--'; });
+      markLive();
+      document.addEventListener('visibilitychange', () => { if (document.hidden) unmarkLive(); else markLive(); });
+      window.addEventListener('pagehide', unmarkLive);
       const scenes = [
         ['rider-vitpilen.jpeg', '01 / APPROACH', '50% 32%'],
         ['vitpilen-profile.jpeg', '02 / SILHOUETTE', '54% center'],
